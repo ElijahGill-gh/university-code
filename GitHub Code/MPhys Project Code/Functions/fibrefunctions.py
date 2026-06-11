@@ -31,9 +31,27 @@ def vectorise(field):
     y = field.shape[1]
     return field.reshape(x*y,1)
 
+def vectorise_torch(fields):
+    """Reshapes a batch of 2D matrices into column vectors."""
+    if fields.dim() == 3:
+        return fields.view(fields.shape[0], -1, 1)
+    elif fields.dim() == 2:
+        return fields.view(-1, 1)
+    else:
+        raise IndexError("Tensor given does not have the allowed dimension. Allowed dim = 2 or 3.")
+
 def unvectorise(field, dim):
     """Reshapes a column vector into a 2D square matrix of size (dim,dim)."""
     return field.reshape(dim,dim)
+
+def unvectorise_torch(fields, dim):
+    """Reshapes a batch of column vectors into 2D square matrices of size [N,dim,dim]."""
+    if fields.dim() == 3:
+        return fields.view(fields.shape[0], dim, dim)
+    elif fields.dim() == 2:
+        return fields.view(dim,dim)
+    else:
+        raise IndexError("Tensor given does not have the allowed dimension. Allowed dim = 2 or 3.")
 
 def norm(mat):
     """Normalises a given complex matrix so that radii are between values of 0 and 1, while maintaining the angles."""
@@ -153,7 +171,7 @@ def visualise(field, title="", intensity: bool=False):
     plt.tight_layout()
     #fig.show()
 
-def visualise2(field1, field2, main_title="", title1="Field Before", title2="Field After", intensity: bool=False):
+def visualise2(field1, field2, main_title="", title1="Field Before", title2="Field After", intensity: bool=False, name="_", save:bool=False, dpi=1000):
     """Displays a visual plot of two fields, using hsv colour mapping to demonstrate the fields' phase (Hue) and amplitude (Value)."""
     # Set up plots
     fig, axs = plt.subplots(1,3, figsize=(15,5))
@@ -185,7 +203,9 @@ def visualise2(field1, field2, main_title="", title1="Field Before", title2="Fie
     axs[0].set_title(title1, fontsize=15)
     axs[1].set_title(title2, fontsize=15)
 
-    fig.show()
+    #fig.show()
+    if save == 1:
+        fig.savefig(name, dpi=dpi)
 
 def pim_superposition(n, pims=PIMs_torch, rand=True):
     """Generates a field of n pims superposed on top of eachother. Can choose random pims, or the first n."""
@@ -320,7 +340,7 @@ def sampled_TM(sig_l, sig_p, uwlp=uwlm):
     """Generates a PIM basis transmission matrix that only contains an amplitude component. 
     Generated from given uwlp values and sig_l and sig_p."""
     # Ordered list of PIMs from uwlm
-    u,w,l,p = np.hsplit(uwlm,4)
+    u,w,l,p = np.hsplit(uwlp,4)
     lp_list = []
     for i in range(l.size):
         lp_list.append([l[i][0],p[i][0]])
@@ -377,6 +397,13 @@ def propagate(field, PIMs_torch, beta_torch, length=0.0):
     field_out_vec = TM(PIMs_torch, beta_torch, length) @ field_vec
     field_out = unvectorise(field_out_vec, 31)
     return field_out
+
+def propagate_torch(fields, PIMs_torch, beta_torch, length=0.0):
+    """Function to propagate an input field through a segment of perfectly
+    straight optical fibre of length=length. Works for a batch of fields."""
+    fields_vec = vectorise_torch(fields)
+    field_out_vec = TM(PIMs_torch, beta_torch, length) @ fields_vec
+    return unvectorise_torch(field_out_vec, fields.shape[1])
 
 # ==============================================================
 #                     Fibre Bending Functions
@@ -436,6 +463,26 @@ def zernike_array(j: str, alpha: torch.Tensor = 0.0, size = 31, wl: float = 633e
         rho = Y
         dist = rho * torch.sin(alpha)
         weight = torch.exp(1j * 2*np.pi/wl * dist)
+    else:
+        raise ValueError("j input not valid! Only accepts 'X' or 'Y'!")
+
+    return weight
+
+def zernike_array_GPU(j: str, X, Y, pi, alpha: torch.Tensor = 0.0, wl: float = 633e-9):
+    """Creates an array based on either the tip or tilt zernike polynomial."""
+    # Reshape alpha to allow batch processing
+    alpha = alpha.view(-1,1,1)
+
+    if j in ('X','x'):
+        alpha = torch.deg2rad(90-alpha)
+        rho = X
+        dist = rho * torch.cos(alpha)
+        weight = torch.exp(1j * 2*pi/wl * dist)
+    elif j in ('Y','y'):
+        alpha = torch.deg2rad(alpha)
+        rho = Y
+        dist = rho * torch.sin(alpha)
+        weight = torch.exp(1j * 2*pi/wl * dist)
     else:
         raise ValueError("j input not valid! Only accepts 'X' or 'Y'!")
 
