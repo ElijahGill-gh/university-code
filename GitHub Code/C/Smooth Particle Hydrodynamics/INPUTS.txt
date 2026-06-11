@@ -1,0 +1,33 @@
+-----------------------------------
+Conditional Booleans
+-----------------------------------
+Boundary Particles: true
+Artificial Viscosity: true
+Variable Smoothing Lengths: true
+Export Data: true
+-----------------------------------
+Tube Parameters
+-----------------------------------
+Tube Length: 1.0
+Gamma: 1.4
+Smoothing Length: 0.016
+Alpha: 1.0
+Beta: 2.0
+Eta: 1.2
+Epsilon: 0.1
+Number of Particles: 250
+Number of Boundary Particles: 25
+-----------------------------------
+Particle Parameters
+-----------------------------------
+Density Left: 1.0
+Pressure Left:1.0
+Density Right: 0.25
+Pressure Right: 0.1795
+-----------------------------------
+Verlet Parameters
+-----------------------------------
+Timestep: 0.0005
+Start Time: 0.0
+End Time: 0.25
+Export Every: 5
